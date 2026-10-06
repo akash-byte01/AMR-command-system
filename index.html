@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AcuNav AMR Command System | Next-Gen Industrial Autonomous Mobile Robot Dashboard</title>
+  <meta name="description" content="State-of-the-art Autonomous Mobile Robot (AMR) control console redesign. Clean visual hierarchy, 5-second operator comprehension, ROS 2 verified telemetry, intuitive navigation & manual controls." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="theme-light">
+  <div id="app" class="app-layout">
+    
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="brand-glyph">
+            <i data-lucide="bot"></i>
+          </div>
+          <div class="brand-info">
+            <span class="brand-name">AcuNav</span>
+            <span class="brand-subtitle">TEXSONICS AMR OS</span>
+          </div>
+        </div>
+        <button id="btn-toggle-sidebar" class="icon-btn sidebar-toggle" title="Collapse / Expand Sidebar" aria-label="Toggle navigation drawer">
+          <i data-lucide="chevron-left" id="sidebar-toggle-icon"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span class="nav-label">Dashboard</span>
+          <span class="nav-badge live-pulse">LIVE</span>
+        </button>
+        <button class="nav-item" data-tab="map" id="nav-map">
+          <i data-lucide="map"></i>
+          <span class="nav-label">Map & SLAM</span>
+        </button>
+        <button class="nav-item" data-tab="navigation" id="nav-navigation">
+          <i data-lucide="navigation"></i>
+          <span class="nav-label">Navigation</span>
+        </button>
+        <button class="nav-item" data-tab="manual" id="nav-manual">
+          <i data-lucide="gamepad-2"></i>
+          <span class="nav-label">Manual Control</span>
+          <span class="nav-indicator" id="nav-drive-indicator"></span>
+        </button>
+        <button class="nav-item" data-tab="routes" id="nav-routes">
+          <i data-lucide="route"></i>
+          <span class="nav-label">Routes</span>
+        </button>
+        <button class="nav-item" data-tab="locations" id="nav-locations">
+          <i data-lucide="map-pin"></i>
+          <span class="nav-label">Saved Locations</span>
+        </button>
+        <button class="nav-item" data-tab="telemetry" id="nav-telemetry">
+          <i data-lucide="activity"></i>
+          <span class="nav-label">Telemetry & Sensors</span>
+        </button>
+        <button class="nav-item" data-tab="logs" id="nav-logs">
+          <i data-lucide="file-clock"></i>
+          <span class="nav-label">History & Logs</span>
+        </button>
+        <button class="nav-item" data-tab="settings" id="nav-settings">
+          <i data-lucide="settings"></i>
+          <span class="nav-label">Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-system-card">
+          <div class="sys-dot online"></div>
+          <div class="sys-info">
+            <span class="sys-title">LiDAR picoScan 150</span>
+            <span class="sys-sub">Publishing safe scan (15Hz)</span>
+          </div>
+        </div>
+        <div class="theme-switch-wrapper">
+          <button id="btn-theme-toggle" class="theme-btn" title="Toggle Dark/Light Mode">
+            <i data-lucide="moon" id="theme-icon"></i>
+            <span class="theme-label">Dark Mode</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="main-wrapper">
+      
+      <!-- TOP STATUS BAR (PERSISTENT & CRITICAL FOR SAFETY) -->
+      <header class="top-status-bar" id="top-status-bar">
+        <div class="top-bar-left">
+          <button id="btn-mobile-menu" class="icon-btn mobile-menu-btn" aria-label="Open mobile menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="robot-identity">
+            <span class="robot-type-tag">AMR-01</span>
+            <span class="robot-name" id="display-robot-name">AcuNav Autonomous Carrier</span>
+          </div>
+        </div>
+
+        <div class="top-bar-center">
+          <div class="status-pill connection-pill" id="conn-pill" title="ROS 2 WebSocket Bridge">
+            <span class="status-dot green-dot"></span>
+            <span class="status-text font-bold" id="conn-text">Connected</span>
+            <span class="status-detail">ROS Verified</span>
+          </div>
+
+          <div class="status-pill state-pill" id="state-pill" data-state="IDLE">
+            <span class="state-dot" id="state-indicator-dot"></span>
+            <span class="state-label">STATE:</span>
+            <span class="state-value" id="display-robot-state">IDLE</span>
+          </div>
+
+          <!-- Dynamic Active Alert Banner in Top Bar when Moving/Manual -->
+          <div class="motion-badge hidden" id="banner-robot-moving">
+            <i data-lucide="radio"></i>
+            <span>ROBOT MOVING</span>
+          </div>
+          <div class="motion-badge manual-active-badge hidden" id="banner-manual-active">
+            <i data-lucide="gamepad-2"></i>
+            <span>MANUAL CONTROL ACTIVE</span>
+          </div>
+          <div class="motion-badge nav-active-badge hidden" id="banner-nav-active">
+            <i data-lucide="compass"></i>
+            <span>NAVIGATION ACTIVE</span>
+          </div>
+        </div>
+
+        <div class="top-bar-right">
+          <div class="ip-display" title="Robot Static IP">
+            <i data-lucide="wifi"></i>
+            <span id="display-robot-ip">10.86.117.166</span>
+          </div>
+
+          <div class="battery-indicator" id="battery-indicator" title="LiFePO4 48V Battery Pack">
+            <div class="battery-icon-wrap">
+              <i data-lucide="battery-charging" id="battery-lucide-icon"></i>
+            </div>
+            <div class="battery-data">
+              <span class="battery-percent" id="display-battery-pct">87%</span>
+              <span class="battery-voltage" id="display-battery-volts">51.2V</span>
+            </div>
+            <div class="battery-bar-outer">
+              <div class="battery-bar-fill" id="battery-fill-bar" style="width: 87%;"></div>
+            </div>
+          </div>
+
+          <!-- PERSISTENT EMERGENCY SAFE STOP -->
+          <button id="btn-top-estop" class="emergency-stop-btn" title="Instant Hardware & Software Safe Stop">
+            <div class="estop-icon"><i data-lucide="octagon-alert"></i></div>
+            <div class="estop-label">
+              <span class="estop-primary">SAFE STOP</span>
+              <span class="estop-secondary">EMERGENCY</span>
+            </div>
+          </button>
+        </div>
+      </header>
+
+      <!-- CONTENT PANELS -->
+      <main class="content-viewport" id="content-viewport">
+        
+        <!-- ============================================== -->
+        <!-- TAB 1: MAIN DASHBOARD (5-SECOND OPERATOR VIEW) -->
+        <!-- ============================================== -->
+        <section id="workspace-dashboard" class="workspace-pane active">
+          
+          <!-- 4 COMPACT STATUS CARDS -->
+          <div class="dashboard-kpi-grid">
+            <div class="kpi-card" id="kpi-status">
+              <div class="kpi-icon-box bg-emerald-subtle">
+                <i data-lucide="shield-check"></i>
+              </div>
+              <div class="kpi-content">
+                <span class="kpi-title">Robot Status</span>
+                <div class="kpi-value-row">
+                  <span class="kpi-primary-val text-success" id="kpi-val-status">Connected</span>
+                  <span class="kpi-tag" id="kpi-val-substate">Idle &amp; Armed</span>
+                </div>
+                <span class="kpi-subtext">ROS Verified &bull; Nav2 Stack Ready</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" id="kpi-battery">
+              <div class="kpi-icon-box bg-cyan-subtle">
+                <i data-lucide="zap"></i>
+              </div>
+              <div class="kpi-content">
+                <span class="kpi-title">Battery Level</span>
+                <div class="kpi-value-row">
+                  <span class="kpi-primary-val" id="kpi-val-battery">87%</span>
+                  <span class="kpi-tag bg-cyan-tag">Charging Disengaged</span>
+                </div>
+                <span class="kpi-subtext">Est. 5h 42m runtime remaining</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" id="kpi-speed">
+              <div class="kpi-icon-box bg-indigo-subtle">
+                <i data-lucide="gauge"></i>
+              </div>
+              <div class="kpi-content">
+                <span class="kpi-title">Speed (Lin / Ang)</span>
+                <div class="kpi-value-row">
+                  <span class="kpi-primary-val" id="kpi-val-speed">0.33 <small>m/s</small></span>
+                  <span class="kpi-val-secondary" id="kpi-val-angular">-0.08 <small>rad/s</small></span>
+                </div>
+                <span class="kpi-subtext" id="kpi-motion-source">Motion: LIVE (ODOM+IMU 50Hz)</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" id="kpi-position">
+              <div class="kpi-icon-box bg-amber-subtle">
+                <i data-lucide="crosshair"></i>
+              </div>
+              <div class="kpi-content">
+                <span class="kpi-title">Position &amp; Heading</span>
+                <div class="kpi-value-row">
+                  <span class="kpi-primary-val" id="kpi-val-coords">X 2.55, Y 1.06</span>
+                  <span class="kpi-tag bg-amber-tag" id="kpi-val-heading">-74&deg;</span>
+                </div>
+                <span class="kpi-subtext" id="kpi-heading-source">Heading source: LIVE (IMU 50Hz)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRIMARY MAP CONTAINER (Large central focus) -->
+          <div class="primary-map-wrapper">
+            <div class="map-card" id="main-map-card">
+              
+              <!-- Floating Map Overlay Bar (Top) -->
+              <div class="map-floating-bar top-overlay">
+                <div class="map-badge-group">
+                  <span class="map-badge"><i data-lucide="layers"></i> AMR MAP &bull; RViz Nav2 Synchronized</span>
+                  <span class="map-res-badge" id="map-meta-info">302 &times; 566 &bull; 5.0 cm/cell</span>
+                </div>
+
+                <div class="map-quick-tools">
+                  <button class="map-btn" id="btn-map-fit" title="Fit Entire Map To View">
+                    <i data-lucide="maximize-2"></i>
+                    <span>Fit</span>
+                  </button>
+                  <button class="map-btn" id="btn-map-north" title="Reset Rotation to North Up">
+                    <i data-lucide="compass"></i>
+                    <span>North Up</span>
+                  </button>
+                  <button class="map-btn" id="btn-map-setpose" title="Set Robot Initial Pose (2D Pose Estimate)">
+                    <i data-lucide="crosshair"></i>
+                    <span>Set Pose</span>
+                  </button>
+                  <button class="map-btn primary-map-btn" id="btn-map-setgoal" title="Set Navigation Goal (2D Nav Goal)">
+                    <i data-lucide="flag"></i>
+                    <span>Set Goal</span>
+                  </button>
+                  <button class="map-btn" id="btn-open-map-tools" title="Open Advanced SLAM &amp; Map Management">
+                    <i data-lucide="sliders-horizontal"></i>
+                    <span>Map Tools</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Interactive Canvas -->
+              <div class="map-canvas-container" id="canvas-container">
+                <canvas id="robot-map-canvas"></canvas>
+
+                <!-- Floating Canvas Controls (Bottom Right) -->
+                <div class="canvas-zoom-controls">
+                  <button class="zoom-btn" id="btn-canvas-zoom-in" title="Zoom In"><i data-lucide="plus"></i></button>
+                  <div class="zoom-level-text" id="zoom-level-display">100%</div>
+                  <button class="zoom-btn" id="btn-canvas-zoom-out" title="Zoom Out"><i data-lucide="minus"></i></button>
+                  <button class="zoom-btn" id="btn-canvas-center-robot" title="Center on Robot"><i data-lucide="locate-fixed"></i></button>
+                </div>
+
+                <!-- Floating Map Legend (Bottom Left) -->
+                <div class="canvas-legend">
+                  <div class="legend-item"><span class="legend-dot color-free"></span> Free Space</div>
+                  <div class="legend-item"><span class="legend-dot color-occupied"></span> Obstacle/Wall</div>
+                  <div class="legend-item"><span class="legend-dot color-robot"></span> AMR Robot</div>
+                  <div class="legend-item"><span class="legend-dot color-path"></span> Planned Path</div>
+                  <div class="legend-item"><span class="legend-dot color-goal"></span> Active Goal</div>
+                </div>
+
+                <!-- Contextual Map Interaction Banner (Shown when user clicks Set Goal / Set Pose) -->
+                <div class="map-interaction-banner hidden" id="map-prompt-banner">
+                  <div class="banner-icon"><i data-lucide="mouse-pointer-click"></i></div>
+                  <div class="banner-text">
+                    <strong id="banner-action-title">Click location on map</strong>
+                    <span id="banner-action-desc">Click anywhere to place destination target or select a saved waypoint.</span>
+                  </div>
+                  <button class="btn-cancel-action" id="btn-cancel-map-action">Cancel</button>
+                </div>
+
+                <!-- Active Navigation HUD Drawer Overlay (Appears when Navigating) -->
+                <div class="nav-active-overlay-card hidden" id="nav-live-hud">
+                  <div class="hud-header">
+                    <div class="hud-status">
+                      <span class="hud-pulse"></span>
+                      <span class="hud-title">NAVIGATING TO: <strong id="hud-target-name">Charging Dock</strong></span>
+                    </div>
+                    <span class="hud-badge" id="hud-eta">ETA: ~45s</span>
+                  </div>
+                  <div class="hud-body">
+                    <div class="hud-metric">
+                      <span class="label">Remaining Distance</span>
+                      <span class="val" id="hud-dist-remain">6.42 m</span>
+                    </div>
+                    <div class="hud-metric">
+                      <span class="label">Current Velocity</span>
+                      <span class="val" id="hud-current-spd">0.33 m/s</span>
+                    </div>
+                    <div class="hud-metric">
+                      <span class="label">Waypoints</span>
+                      <span class="val" id="hud-waypoint-counter">2 / 4</span>
+                    </div>
+                    <div class="hud-progress-wrap">
+                      <div class="hud-progress-bar" id="hud-progress-fill" style="width: 45%;"></div>
+                    </div>
+                  </div>
+                  <div class="hud-actions">
+                    <button class="btn-hud pause" id="btn-hud-pause"><i data-lucide="pause"></i> Pause</button>
+                    <button class="btn-hud resume hidden" id="btn-hud-resume"><i data-lucide="play"></i> Resume</button>
+                    <button class="btn-hud cancel" id="btn-hud-cancel"><i data-lucide="x"></i> Cancel Goal</button>
+                    <button class="btn-hud danger" id="btn-hud-estop"><i data-lucide="octagon-alert"></i> Safe Stop</button>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- QUICK ACTIONS FOOTER (HIGH VISIBILITY, 5-SECOND ACTIONS) -->
+          <div class="dashboard-quick-actions-bar">
+            <div class="quick-actions-heading">
+              <span class="qa-badge">OPERATOR DISPATCH</span>
+              <h4>Quick Actions</h4>
+            </div>
+
+            <div class="quick-actions-buttons">
+              <button class="btn-quick primary" id="btn-quick-setgoal">
+                <i data-lucide="map-pin"></i>
+                <div class="btn-text">
+                  <span class="btn-main">Set Goal</span>
+                  <span class="btn-sub">Dispatch to target</span>
+                </div>
+              </button>
+
+              <button class="btn-quick" id="btn-quick-return-home">
+                <i data-lucide="home"></i>
+                <div class="btn-text">
+                  <span class="btn-main">Return Home</span>
+                  <span class="btn-sub">Send to Home Base</span>
+                </div>
+              </button>
+
+              <button class="btn-quick" id="btn-quick-charge">
+                <i data-lucide="battery-charging"></i>
+                <div class="btn-text">
+                  <span class="btn-main">Charging Dock</span>
+                  <span class="btn-sub">Auto docking routine</span>
+                </div>
+              </button>
+
+              <button class="btn-quick" id="btn-quick-toggle-pause">
+                <i data-lucide="pause" id="qa-pause-icon"></i>
+                <div class="btn-text">
+                  <span class="btn-main" id="qa-pause-main">Pause</span>
+                  <span class="btn-sub" id="qa-pause-sub">Hold position</span>
+                </div>
+              </button>
+
+              <button class="btn-quick manual-btn" id="btn-quick-manual">
+                <i data-lucide="gamepad-2"></i>
+                <div class="btn-text">
+                  <span class="btn-main">Manual Control</span>
+                  <span class="btn-sub">Teleoperation mode</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: ADVANCED MAP & SLAM MANAGEMENT          -->
+        <!-- ============================================== -->
+        <section id="workspace-map" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Map &amp; SLAM Localization Tools</h2>
+              <p>Manage 2D occupancy grid maps, lidar scan matching, import/export RViz maps, and SLAM sessions.</p>
+            </div>
+            <div class="wh-actions">
+              <span class="status-tag success"><i data-lucide="check-circle-2"></i> LiDAR picoScan Active</span>
+            </div>
+          </div>
+
+          <div class="two-col-layout">
+            <!-- Left: Map Action Cards -->
+            <div class="cards-column">
+              
+              <!-- SLAM Lifecycle Card -->
+              <div class="control-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="map-pin-check"></i>
+                    <h3>SLAM Mapping Session</h3>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted text-sm mb-3">Initialize cartographer or slam_toolbox node to explore and map new factory floor layouts.</p>
+                  <div class="button-row">
+                    <button class="btn btn-primary" id="btn-start-fresh-map">
+                      <i data-lucide="plus-circle"></i> Start Fresh Map
+                    </button>
+                    <button class="btn btn-danger-outline" id="btn-clear-map">
+                      <i data-lucide="trash-2"></i> Clear Map
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Map Import/Export Card -->
+              <div class="control-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="download-cloud"></i>
+                    <h3>Map Import &amp; Export</h3>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted text-sm mb-3">Load standard ROS YAML/PGM map bundles or export current raster occupancy canvas.</p>
+                  <div class="button-row">
+                    <label class="btn btn-secondary file-upload-btn">
+                      <i data-lucide="folder-open"></i> Import Map
+                      <input type="file" id="input-map-file" accept=".yaml,.pgm,.png,.jpg" hidden />
+                    </label>
+                    <button class="btn btn-secondary" id="btn-save-map-image">
+                      <i data-lucide="image"></i> Save Map Image
+                    </button>
+                    <button class="btn btn-secondary" id="btn-map-editor">
+                      <i data-lucide="edit-3"></i> Map Editor
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pose Calibration Card -->
+              <div class="control-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="locate"></i>
+                    <h3>Initial Pose &amp; Target Tools</h3>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted text-sm mb-3">Provide initial 2D pose estimate for AMCL particle filter localization convergence.</p>
+                  <div class="button-row">
+                    <button class="btn btn-secondary" id="btn-tools-set-pose">
+                      <i data-lucide="crosshair"></i> Set 2D Pose
+                    </button>
+                    <button class="btn btn-secondary" id="btn-tools-set-goal">
+                      <i data-lucide="flag"></i> Set 2D Goal
+                    </button>
+                    <button class="btn btn-secondary" id="btn-tools-fit">
+                      <i data-lucide="maximize-2"></i> Fit Canvas
+                    </button>
+                    <button class="btn btn-secondary" id="btn-tools-north">
+                      <i data-lucide="compass"></i> North Up
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right: Secondary Interactive Map Viewport -->
+            <div class="map-preview-column">
+              <div class="control-card full-height-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="eye"></i>
+                    <h3>Active Map Viewport</h3>
+                  </div>
+                  <span class="badge-accent">SICK picoScan 150</span>
+                </div>
+                <div class="card-body map-embed-body">
+                  <div class="map-view-embed">
+                    <!-- Duplicate canvas viewer for map view -->
+                    <canvas id="secondary-map-canvas"></canvas>
+                  </div>
+                  <div class="map-telemetry-strip">
+                    <span>Resolution: <strong>0.05m</strong></span>
+                    <span>Origin: <strong>[-10.0, -10.0, 0.0]</strong></span>
+                    <span>Dimensions: <strong>302 &times; 566</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: NAVIGATION & DISPATCH WORKFLOW          -->
+        <!-- ============================================== -->
+        <section id="workspace-navigation" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Navigation &amp; Mission Planning</h2>
+              <p>Autonomous point-to-point dispatch, waypoint sequencing, round trips, and Nav2 costmap path execution.</p>
+            </div>
+            <div class="wh-actions">
+              <div class="dry-run-toggle-wrapper">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-dry-run">
+                  <span class="slider round"></span>
+                </label>
+                <div class="toggle-label-group">
+                  <span class="t-title">Dry Run Mode</span>
+                  <span class="t-sub">Simulate speed without drive output</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="nav-workspace-grid">
+            
+            <!-- Left: Mission Wizard / Step Form -->
+            <div class="nav-wizard-column">
+              
+              <!-- STEP 1 & 2: WIZARD CONTAINER -->
+              <div class="control-card" id="card-nav-planner">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="send"></i>
+                    <h3>Dispatch New Mission</h3>
+                  </div>
+                  <span class="step-indicator" id="nav-step-indicator">Step 1 of 2</span>
+                </div>
+
+                <div class="card-body">
+                  
+                  <!-- Step 1: Destination Selection -->
+                  <div id="nav-step-1" class="wizard-step active">
+                    <label class="form-label">1. Choose Destination Strategy</label>
+                    <div class="strategy-selector">
+                      <button class="strat-btn active" id="strat-saved">
+                        <i data-lucide="bookmark"></i> Saved Location
+                      </button>
+                      <button class="strat-btn" id="strat-map">
+                        <i data-lucide="mouse-pointer-click"></i> Map Click
+                      </button>
+                      <button class="strat-btn" id="strat-waypoint">
+                        <i data-lucide="list-plus"></i> Multi-Waypoint
+                      </button>
+                    </div>
+
+                    <!-- Saved location dropdown -->
+                    <div class="form-group mt-3" id="group-saved-dest">
+                      <label class="form-label" for="select-nav-location">Select Saved Waypoint</label>
+                      <select id="select-nav-location" class="form-control select-lg">
+                        <option value="Home Base">🏠 Home Base (6.51m, 3.78m, -2°)</option>
+                        <option value="Charging Dock" selected>🔋 Charging Dock (6.40m, 1.28m, -17°)</option>
+                        <option value="Senthil_Sir_Place">🏢 Senthil_Sir_Place (83.9m, 0.47m, 171°)</option>
+                        <option value="Location 4">📍 Location 4 (5.12m, 2.54m, 30°)</option>
+                        <option value="Location 5">📍 Location 5 (3.76m, 4.61m, 0°)</option>
+                        <option value="Location 6">📍 Location 6 (3.76m, 6.02m, -45°)</option>
+                      </select>
+                    </div>
+
+                    <!-- Coordinates Display / Selection -->
+                    <div class="dest-summary-card">
+                      <div class="dsc-row">
+                        <span class="label">Target Position:</span>
+                        <span class="val font-mono" id="dest-coords-val">X: 6.40 m, Y: 1.28 m</span>
+                      </div>
+                      <div class="dsc-row">
+                        <span class="label">Target Orientation:</span>
+                        <span class="val font-mono" id="dest-orient-val">-17.0&deg;</span>
+                      </div>
+                      <div class="dsc-row">
+                        <span class="label">Estimated Distance:</span>
+                        <span class="val highlight" id="dest-dist-val">~6.42 meters</span>
+                      </div>
+                    </div>
+
+                    <div class="wizard-footer mt-4">
+                      <button class="btn btn-secondary" id="btn-nav-add-waypoint">
+                        <i data-lucide="plus"></i> Add Waypoint
+                      </button>
+                      <button class="btn btn-primary btn-lg" id="btn-proceed-step-2">
+                        <span>Calculate Route &amp; Review</span>
+                        <i data-lucide="arrow-right"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Step 2: Route Review & Dispatch -->
+                  <div id="nav-step-2" class="wizard-step hidden">
+                    <div class="step-2-preview">
+                      <div class="route-badge-row">
+                        <span class="badge-route-status">Nav2 Global Costmap Cleared</span>
+                        <span class="badge-route-type">DWB Local Planner</span>
+                      </div>
+                      <div class="route-metric-box">
+                        <div class="rmb-col">
+                          <span class="t">Destination</span>
+                          <span class="v" id="confirm-dest-name">Charging Dock</span>
+                        </div>
+                        <div class="rmb-col">
+                          <span class="t">Planned Path Length</span>
+                          <span class="v">6.42 m</span>
+                        </div>
+                        <div class="rmb-col">
+                          <span class="t">Est. Time</span>
+                          <span class="v">~24 sec</span>
+                        </div>
+                      </div>
+
+                      <div class="safety-advisory-box">
+                        <i data-lucide="shield-alert"></i>
+                        <span>Obstacle avoidance armed. SICK LiDAR safety laser fields active.</span>
+                      </div>
+                    </div>
+
+                    <div class="wizard-footer mt-4">
+                      <button class="btn btn-secondary" id="btn-back-step-1">
+                        <i data-lucide="arrow-left"></i> Back
+                      </button>
+                      <button class="btn btn-success btn-lg" id="btn-execute-nav-mission">
+                        <i data-lucide="play"></i> Start Navigation
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- RETURN / REPEAT WIZARD CARD (From current UI features) -->
+              <div class="control-card mt-3">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="repeat"></i>
+                    <h3>Return &amp; Repeat Round Trips</h3>
+                  </div>
+                  <span class="badge-subtle">Fixed Route Loops</span>
+                </div>
+                <div class="card-body">
+                  <div class="repeat-grid">
+                    <div class="repeat-inputs">
+                      <div class="repeat-route-desc">
+                        <span class="badge-node">A</span>
+                        <span>Current Pose / Home Base</span>
+                        <i data-lucide="arrow-right-left"></i>
+                        <span class="badge-node">B</span>
+                        <select id="select-repeat-target" class="form-control form-control-sm">
+                          <option value="Charging Dock">Charging Dock</option>
+                          <option value="Location 4">Location 4</option>
+                          <option value="Location 5">Location 5</option>
+                          <option value="Senthil_Sir_Place">Senthil_Sir_Place</option>
+                        </select>
+                      </div>
+
+                      <div class="round-trips-selector">
+                        <label class="form-label">Number of round trips:</label>
+                        <div class="stepper-wrap">
+                          <button class="stepper-btn" id="btn-trip-dec">-</button>
+                          <input type="number" id="input-round-trips" value="4" min="1" max="99" class="form-control text-center font-bold" />
+                          <button class="stepper-btn" id="btn-trip-inc">+</button>
+                        </div>
+                        <label class="checkbox-label">
+                          <input type="checkbox" id="check-until-stopped">
+                          <span>Until stopped (&infin;)</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="repeat-action-buttons">
+                      <button class="btn btn-secondary" id="btn-run-return-ba">
+                        <i data-lucide="undo-2"></i> Return B &rarr; A
+                      </button>
+                      <button class="btn btn-primary" id="btn-run-repeat-trips">
+                        <i data-lucide="refresh-cw"></i> Repeat Round Trips
+                      </button>
+                    </div>
+                  </div>
+                  <div class="text-xs text-muted mt-2">
+                    <i data-lucide="info" class="inline-icon"></i> Fixed route: A &rarr; B &rarr; A (repeat). Waits at B. Along-path continuous navigation.
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right: Waypoints Queue & Real-time Path Monitoring -->
+            <div class="nav-status-column">
+              <div class="control-card full-height-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="list-ordered"></i>
+                    <h3>Mission Waypoint Queue</h3>
+                  </div>
+                  <button class="btn-text-sm" id="btn-clear-waypoints">Clear All</button>
+                </div>
+                <div class="card-body">
+                  <div class="waypoint-list" id="active-waypoint-list">
+                    <div class="waypoint-item active">
+                      <div class="wp-number">1</div>
+                      <div class="wp-info">
+                        <strong>Charging Dock</strong>
+                        <span>(6.40m, 1.28m, -17°)</span>
+                      </div>
+                      <span class="wp-status in-progress">Active Target</span>
+                    </div>
+                    <div class="waypoint-item">
+                      <div class="wp-number">2</div>
+                      <div class="wp-info">
+                        <strong>Inspection Point Alpha</strong>
+                        <span>(8.20m, 3.40m, 45°)</span>
+                      </div>
+                      <span class="wp-status pending">Pending</span>
+                    </div>
+                    <div class="waypoint-item">
+                      <div class="wp-number">3</div>
+                      <div class="wp-info">
+                        <strong>Home Base (Final)</strong>
+                        <span>(6.51m, 3.78m, -2°)</span>
+                      </div>
+                      <span class="wp-status pending">Pending</span>
+                    </div>
+                  </div>
+
+                  <!-- Live Navigation Execution Console -->
+                  <div class="nav-log-terminal">
+                    <div class="nlt-header">
+                      <i data-lucide="terminal"></i>
+                      <span>Nav2 Behavior Tree Executive</span>
+                    </div>
+                    <div class="nlt-content font-mono" id="nav-live-logs">
+                      <div class="log-line text-success">[14:15:02] [Nav2]: BT Navigator initialized.</div>
+                      <div class="log-line">[14:15:04] [Costmap2D]: Global obstacle layers updated.</div>
+                      <div class="log-line">[14:15:10] [Planner]: Found viable path (6.42m). 28 points.</div>
+                      <div class="log-line text-info">[14:15:12] [Controller]: DWB local path follower engaged.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 4: MANUAL ROBOT CONTROL (TELEOPERATION)    -->
+        <!-- ============================================== -->
+        <section id="workspace-manual" class="workspace-pane">
+          <div class="manual-control-view">
+            
+            <!-- Prominent Safety Warning Banner -->
+            <div class="manual-warning-banner" id="manual-safety-banner">
+              <div class="mwb-icon"><i data-lucide="triangle-alert"></i></div>
+              <div class="mwb-text">
+                <strong>MANUAL CONTROL MODE &bull; DIRECT VELOCITY OVERRIDE</strong>
+                <p>Robot will respond immediately to manual jog inputs. Obstacle safety bubble remains active.</p>
+              </div>
+              <div class="mwb-toggle">
+                <span class="drive-label">DRIVE ENABLED</span>
+                <label class="toggle-switch lg">
+                  <input type="checkbox" id="toggle-drive-enabled" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="manual-layout-grid">
+              
+              <!-- Left: Directional Jog Controller -->
+              <div class="control-card teleop-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="move"></i>
+                    <h3>Directional Drive Jogger</h3>
+                  </div>
+                  <span class="kb-hint"><i data-lucide="keyboard"></i> Arrow Keys / WASD Supported</span>
+                </div>
+                
+                <div class="card-body teleop-body">
+                  <div class="dpad-controller">
+                    
+                    <div class="dpad-row dpad-top">
+                      <button class="dpad-btn btn-fwd" id="btn-drive-fwd" title="Forward (Arrow Up / W)">
+                        <i data-lucide="arrow-up"></i>
+                        <span>FORWARD</span>
+                      </button>
+                    </div>
+
+                    <div class="dpad-row dpad-mid">
+                      <button class="dpad-btn btn-left" id="btn-drive-left" title="Turn Left (Arrow Left / A)">
+                        <i data-lucide="arrow-left"></i>
+                        <span>LEFT</span>
+                      </button>
+
+                      <!-- HUGE CENTRAL STOP BUTTON -->
+                      <button class="dpad-stop-btn" id="btn-drive-stop" title="Stop Motion (Spacebar / Esc)">
+                        <div class="stop-inner">
+                          <i data-lucide="square"></i>
+                          <span>STOP</span>
+                        </div>
+                      </button>
+
+                      <button class="dpad-btn btn-right" id="btn-drive-right" title="Turn Right (Arrow Right / D)">
+                        <i data-lucide="arrow-right"></i>
+                        <span>RIGHT</span>
+                      </button>
+                    </div>
+
+                    <div class="dpad-row dpad-bottom">
+                      <button class="dpad-btn btn-back" id="btn-drive-back" title="Backward (Arrow Down / S)">
+                        <i data-lucide="arrow-down"></i>
+                        <span>BACKWARD</span>
+                      </button>
+                    </div>
+
+                  </div>
+
+                  <div class="dpad-status-readout">
+                    <span>Cmd Vel: </span>
+                    <strong class="font-mono" id="manual-cmd-vel-val">linear: 0.00 m/s &bull; angular: 0.00 rad/s</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Speed Limits & Safety Sliders -->
+              <div class="control-card sliders-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="sliders"></i>
+                    <h3>Speed Limits &amp; Sensitivities</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  
+                  <!-- Linear Speed Limit -->
+                  <div class="slider-control-group">
+                    <div class="scg-header">
+                      <label for="slider-linear-speed">Linear Speed Limit (m/s)</label>
+                      <span class="scg-val-badge font-mono" id="display-linear-limit">0.20 m/s</span>
+                    </div>
+                    <input type="range" id="slider-linear-speed" min="0.05" max="1.00" step="0.05" value="0.20" class="custom-range" />
+                    <div class="range-labels">
+                      <span>0.05 m/s (Creep)</span>
+                      <span>0.50 m/s (Normal)</span>
+                      <span>1.00 m/s (Max)</span>
+                    </div>
+                  </div>
+
+                  <!-- Angular Speed Limit -->
+                  <div class="slider-control-group mt-4">
+                    <div class="scg-header">
+                      <label for="slider-angular-speed">Angular Speed Limit (rad/s)</label>
+                      <span class="scg-val-badge font-mono" id="display-angular-limit">0.50 rad/s</span>
+                    </div>
+                    <input type="range" id="slider-angular-speed" min="0.10" max="1.50" step="0.05" value="0.50" class="custom-range" />
+                    <div class="range-labels">
+                      <span>0.10 rad/s (Precise)</span>
+                      <span>0.80 rad/s (Standard)</span>
+                      <span>1.50 rad/s (Agile)</span>
+                    </div>
+                  </div>
+
+                  <!-- Manual Safety Details Box -->
+                  <div class="manual-safety-details mt-4">
+                    <div class="msd-head">
+                      <i data-lucide="shield-check"></i>
+                      <strong>Manual Control Safety Interlocks</strong>
+                    </div>
+                    <ul class="safety-checklist">
+                      <li class="checked"><i data-lucide="check"></i> Software Deadman Timer (Auto-stop after 400ms without input)</li>
+                      <li class="checked"><i data-lucide="check"></i> 360&deg; LiDAR PicoScan Collision Guard Active</li>
+                      <li class="checked"><i data-lucide="check"></i> Emergency E-Stop Hardware Line Monitored</li>
+                    </ul>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 5: FIXED ROUTES MANAGER                    -->
+        <!-- ============================================== -->
+        <section id="workspace-routes" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Fixed Routes &amp; Patrol Paths</h2>
+              <p>Create, inspect, reverse, and execute predefined waypoint routes and guided corridors.</p>
+            </div>
+            <div class="wh-actions">
+              <button class="btn btn-primary" id="btn-start-draw-route">
+                <i data-lucide="pen-tool"></i> Draw Route From Robot
+              </button>
+            </div>
+          </div>
+
+          <div class="two-col-layout">
+            <!-- Left: Saved Routes List & Creator -->
+            <div class="routes-manager-column">
+              
+              <!-- Route Editing Workflow Bar (Dynamic: Shows when drawing/editing) -->
+              <div class="route-editor-toolbar hidden" id="route-editor-bar">
+                <div class="ret-info">
+                  <span class="ret-tag">ROUTE DRAWING ACTIVE</span>
+                  <span class="ret-points-count" id="ret-points-count">Points: 0</span>
+                </div>
+                <div class="ret-actions">
+                  <button class="btn btn-secondary btn-sm" id="btn-route-undo" title="Undo last waypoint">
+                    <i data-lucide="undo"></i> Undo Point
+                  </button>
+                  <button class="btn btn-secondary btn-sm" id="btn-route-reverse" title="Reverse point sequence">
+                    <i data-lucide="arrow-left-right"></i> Reverse Order
+                  </button>
+                  <button class="btn btn-danger-outline btn-sm" id="btn-route-clear-draft">
+                    <i data-lucide="trash"></i> Clear Draft
+                  </button>
+                  <button class="btn btn-success btn-sm" id="btn-route-finish">
+                    <i data-lucide="check"></i> Finish &amp; Save
+                  </button>
+                </div>
+              </div>
+
+              <!-- Saved Routes Table / Cards -->
+              <div class="control-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="layers"></i>
+                    <h3>Saved Routes on this Map</h3>
+                  </div>
+                  <div class="search-input-wrap">
+                    <input type="text" placeholder="Filter routes..." class="form-control form-control-sm" id="input-search-routes" />
+                  </div>
+                </div>
+
+                <div class="card-body p-0">
+                  <div class="routes-table-wrap">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Route Name</th>
+                          <th>Waypoints</th>
+                          <th>Est. Distance</th>
+                          <th>Last Used</th>
+                          <th class="text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="routes-table-body">
+                        <!-- Populated by JS -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Create / Save Form -->
+              <div class="control-card mt-3" id="card-new-route">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="plus-circle"></i>
+                    <h3>Save Current Route</h3>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div class="form-inline-row">
+                    <input type="text" id="input-route-name" class="form-control" placeholder="Enter route name (e.g. 12324574785)" value="12324574785" />
+                    <button class="btn btn-primary" id="btn-save-route-confirm">
+                      <i data-lucide="save"></i> Save Route
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right: Interactive Route Visualizer Preview -->
+            <div class="route-preview-column">
+              <div class="control-card full-height-card">
+                <div class="card-head">
+                  <div class="ch-left">
+                    <i data-lucide="map"></i>
+                    <h3 id="preview-route-title">Route Visualization: 123245</h3>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn btn-success btn-sm" id="btn-load-execute-route">
+                      <i data-lucide="play"></i> Execute This Route
+                    </button>
+                  </div>
+                </div>
+                <div class="card-body map-embed-body">
+                  <div class="map-view-embed">
+                    <canvas id="route-map-canvas"></canvas>
+                  </div>
+                  <div class="route-stats-footer">
+                    <span>Total Nodes: <strong id="route-stat-nodes">7 points</strong></span>
+                    <span>Segment Bends: <strong>Small Checked Bends</strong></span>
+                    <span>Safety Zone: <strong>0.6m Corridor</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 6: SAVED LOCATIONS & STATIONS              -->
+        <!-- ============================================== -->
+        <section id="workspace-locations" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Saved Locations &amp; Landmark POIs</h2>
+              <p>Docking stations, material pickup bins, maintenance docks, and predefined goals.</p>
+            </div>
+            <div class="wh-actions">
+              <button class="btn btn-primary" id="btn-add-location-modal">
+                <i data-lucide="plus"></i> Add New Location
+              </button>
+            </div>
+          </div>
+
+          <!-- Locations Card Grid -->
+          <div class="locations-card-grid" id="locations-card-container">
+            <!-- Cards rendered dynamically via JavaScript -->
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 7: DETAILED TELEMETRY & DIAGNOSTICS        -->
+        <!-- ============================================== -->
+        <section id="workspace-telemetry" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Hardware Telemetry &amp; ROS 2 Nodes</h2>
+              <p>Real-time sensor publishers, transform trees (TF), odometry covariance, and motor diagnostics.</p>
+            </div>
+            <div class="wh-actions">
+              <span class="status-tag success"><i data-lucide="activity"></i> 50 Hz Live Stream</span>
+            </div>
+          </div>
+
+          <div class="telemetry-grid">
+            
+            <div class="control-card">
+              <div class="card-head">
+                <div class="ch-left">
+                  <i data-lucide="cpu"></i>
+                  <h3>Kinematics &amp; Odometry</h3>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="telemetry-table">
+                  <div class="telem-row">
+                    <span>Linear Velocity (x, y, z):</span>
+                    <strong class="font-mono" id="telem-lin-vel">[0.33, 0.00, 0.00] m/s</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Angular Velocity (&omega;z):</span>
+                    <strong class="font-mono" id="telem-ang-vel">-0.08 rad/s (-4.58 &deg;/s)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Map Coordinate (X, Y):</span>
+                    <strong class="font-mono" id="telem-coords">X: 2.55 m, Y: 1.06 m, Z: 0.00 m</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Robot Heading (&theta; yaw):</span>
+                    <strong class="font-mono" id="telem-heading">-74.00&deg; (-1.291 rad)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Heading Source:</span>
+                    <strong class="font-mono text-success">LIVE (IMU @ 50 Hz)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Motion Source:</span>
+                    <strong class="font-mono text-success">LIVE (ODOM+EKF @ 50 Hz)</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="control-card">
+              <div class="card-head">
+                <div class="ch-left">
+                  <i data-lucide="radio"></i>
+                  <h3>Sensors &amp; Peripherals</h3>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="telemetry-table">
+                  <div class="telem-row">
+                    <span>Primary LiDAR:</span>
+                    <strong class="text-success">SICK picoScan 150 (Publishing @ 15Hz)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>IMU 9-DOF:</span>
+                    <strong class="text-success">Bosch BNO085 (Calibrated, 0 drift)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Wheel Encoders:</span>
+                    <strong class="text-success">Dual Optical Quad (4096 CPR)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Battery Management (BMS):</span>
+                    <strong class="text-success">48V 40Ah LiFePO4 (Temp 28&deg;C)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Safety Laser Field:</span>
+                    <strong class="text-success">Protective &amp; Warning Zones Clear</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="control-card">
+              <div class="card-head">
+                <div class="ch-left">
+                  <i data-lucide="network"></i>
+                  <h3>ROS 2 Middleware Node Graph</h3>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="telemetry-table">
+                  <div class="telem-row">
+                    <span>ROS Domain ID:</span>
+                    <strong class="font-mono">0</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Nav2 Lifecycle State:</span>
+                    <strong class="text-success">ACTIVE (All 7 nodes running)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>Rosbridge WebSocket:</span>
+                    <strong class="text-success">ws://10.86.117.166:9090 (Latency: 8ms)</strong>
+                  </div>
+                  <div class="telem-row">
+                    <span>TF Transform Tree:</span>
+                    <strong class="text-success">map &rarr; odom &rarr; base_link &rarr; laser</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 8: HISTORY & SYSTEM LOGS                   -->
+        <!-- ============================================== -->
+        <section id="workspace-logs" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Mission History &amp; Event Audit Logs</h2>
+              <p>Historical dispatches, safety stops, battery recharge cycles, and system alerts.</p>
+            </div>
+            <div class="wh-actions">
+              <button class="btn btn-secondary" id="btn-export-logs">
+                <i data-lucide="download"></i> Export Logs (JSON)
+              </button>
+            </div>
+          </div>
+
+          <div class="control-card">
+            <div class="card-body p-0">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event Type</th>
+                    <th>Source</th>
+                    <th>Message Details</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-logs-table">
+                  <tr>
+                    <td class="font-mono">14:14:52</td>
+                    <td><span class="log-badge-info">NAV_GOAL</span></td>
+                    <td>Nav2 Controller</td>
+                    <td>Goal received: Charging Dock (6.40, 1.28)</td>
+                    <td><span class="text-success">Active</span></td>
+                  </tr>
+                  <tr>
+                    <td class="font-mono">14:12:10</td>
+                    <td><span class="log-badge-success">MISSION_SUCCESS</span></td>
+                    <td>BehaviorTree</td>
+                    <td>Completed round trip loop 1/4 to Location 4</td>
+                    <td><span class="text-success">Success</span></td>
+                  </tr>
+                  <tr>
+                    <td class="font-mono">14:05:33</td>
+                    <td><span class="log-badge-info">LIDAR_SCAN</span></td>
+                    <td>picoScan_node</td>
+                    <td>Laser scan active at 15Hz. Safe field clear.</td>
+                    <td><span class="text-success">Nominal</span></td>
+                  </tr>
+                  <tr>
+                    <td class="font-mono">13:58:20</td>
+                    <td><span class="log-badge-warning">OBSTACLE_AVOID</span></td>
+                    <td>DWB Local</td>
+                    <td>Transient obstacle detected at 1.4m. Path recalculated.</td>
+                    <td><span class="text-warning">Avoided</span></td>
+                  </tr>
+                  <tr>
+                    <td class="font-mono">13:40:12</td>
+                    <td><span class="log-badge-info">SYSTEM_BOOT</span></td>
+                    <td>ROS2 Launch</td>
+                    <td>AMR base bringup completed. Verifying topics...</td>
+                    <td><span class="text-success">Online</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TAB 9: SETTINGS & CONFIGURATION                -->
+        <!-- ============================================== -->
+        <section id="workspace-settings" class="workspace-pane">
+          <div class="workspace-header">
+            <div class="wh-text">
+              <h2>Dashboard &amp; AMR Network Settings</h2>
+              <p>Configure network IP endpoints, ROS WebSocket bridge, safety thresholds, and audio cues.</p>
+            </div>
+            <div class="wh-actions">
+              <button class="btn btn-primary" id="btn-save-settings">
+                <i data-lucide="check"></i> Save Changes
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="control-card">
+              <div class="card-head">
+                <div class="ch-left">
+                  <i data-lucide="wifi"></i>
+                  <h3>Network &amp; ROS Bridge</h3>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="form-group mb-3">
+                  <label class="form-label" for="setting-robot-ip">Robot IP Address</label>
+                  <input type="text" id="setting-robot-ip" class="form-control" value="10.86.117.166" />
+                </div>
+                <div class="form-group mb-3">
+                  <label class="form-label" for="setting-ws-port">Rosbridge WebSocket Port</label>
+                  <input type="number" id="setting-ws-port" class="form-control" value="9090" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-topic-scan">LiDAR Laser Scan Topic</label>
+                  <input type="text" id="setting-topic-scan" class="form-control" value="/scan" />
+                </div>
+              </div>
+            </div>
+
+            <div class="control-card">
+              <div class="card-head">
+                <div class="ch-left">
+                  <i data-lucide="shield"></i>
+                  <h3>Safety Limits &amp; Obstacle Bubble</h3>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="form-group mb-3">
+                  <label class="form-label">Default Max Linear Speed (m/s)</label>
+                  <input type="number" step="0.05" class="form-control" value="0.50" />
+                </div>
+                <div class="form-group mb-3">
+                  <label class="form-label">Safety Collision Padding (m)</label>
+                  <input type="number" step="0.05" class="form-control" value="0.30" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Deadman Timeout (ms)</label>
+                  <input type="number" class="form-control" value="400" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+    </div><!-- End main-wrapper -->
+
+    <!-- ============================================== -->
+    <!-- ADVANCED MAP TOOLS DRAWER (SLIDE-OVER)         -->
+    <!-- ============================================== -->
+    <div class="modal-backdrop hidden" id="map-tools-backdrop"></div>
+    <aside class="slideover-drawer hidden" id="map-tools-drawer">
+      <div class="drawer-header">
+        <div class="dh-title">
+          <i data-lucide="sliders-horizontal"></i>
+          <h3>Advanced Map Tools</h3>
+        </div>
+        <button class="icon-btn" id="btn-close-map-tools"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <h4>SLAM &amp; Map Lifecycle</h4>
+          <div class="drawer-btn-grid">
+            <button class="btn btn-secondary drawer-btn" id="drawer-fresh-map">
+              <i data-lucide="plus-circle"></i> Start Fresh Map
+            </button>
+            <button class="btn btn-secondary drawer-btn" id="drawer-clear-map">
+              <i data-lucide="trash-2"></i> Clear Map
+            </button>
+            <button class="btn btn-secondary drawer-btn" id="drawer-save-img">
+              <i data-lucide="download"></i> Save Map Image
+            </button>
+            <label class="btn btn-secondary drawer-btn file-upload-btn">
+              <i data-lucide="folder-open"></i> Import Map
+              <input type="file" id="drawer-input-map" hidden />
+            </label>
+            <button class="btn btn-secondary drawer-btn" id="drawer-map-editor">
+              <i data-lucide="edit-3"></i> Open Map Editor
+            </button>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>View &amp; Orientation</h4>
+          <div class="drawer-btn-grid">
+            <button class="btn btn-secondary drawer-btn" id="drawer-fit">
+              <i data-lucide="maximize-2"></i> Fit to Screen
+            </button>
+            <button class="btn btn-secondary drawer-btn" id="drawer-north">
+              <i data-lucide="compass"></i> North Up
+            </button>
+            <button class="btn btn-secondary drawer-btn" id="drawer-pan-left">
+              <i data-lucide="arrow-left"></i> Pan Left
+            </button>
+            <button class="btn btn-secondary drawer-btn" id="drawer-pan-right">
+              <i data-lucide="arrow-right"></i> Pan Right
+            </button>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Localization Targets</h4>
+          <div class="drawer-btn-grid">
+            <button class="btn btn-secondary drawer-btn" id="drawer-set-pose">
+              <i data-lucide="crosshair"></i> Set 2D Pose
+            </button>
+            <button class="btn btn-secondary drawer-btn" id="drawer-set-goal">
+              <i data-lucide="flag"></i> Set 2D Goal
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============================================== -->
+    <!-- ADD / EDIT LOCATION MODAL                      -->
+    <!-- ============================================== -->
+    <div class="modal-backdrop hidden" id="location-modal-backdrop"></div>
+    <div class="modal-dialog hidden" id="location-modal">
+      <div class="modal-header">
+        <h3 id="loc-modal-title">Add New Saved Location</h3>
+        <button class="icon-btn" id="btn-close-loc-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group mb-3">
+          <label class="form-label" for="loc-name-input">Location Name</label>
+          <input type="text" id="loc-name-input" class="form-control" placeholder="e.g. Warehouse Bay 4" />
+        </div>
+        <div class="form-row mb-3">
+          <div class="form-col">
+            <label class="form-label" for="loc-x-input">Position X (m)</label>
+            <input type="number" step="0.01" id="loc-x-input" class="form-control" value="4.50" />
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="loc-y-input">Position Y (m)</label>
+            <input type="number" step="0.01" id="loc-y-input" class="form-control" value="2.20" />
+          </div>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label" for="loc-yaw-input">Heading / Yaw (&deg;)</label>
+          <input type="number" step="1" id="loc-yaw-input" class="form-control" value="0" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loc-icon-select">Location Type / Icon</label>
+          <select id="loc-icon-select" class="form-control">
+            <option value="map-pin">📍 Standard Waypoint</option>
+            <option value="home">🏠 Home Base</option>
+            <option value="battery-charging">🔋 Charging Station</option>
+            <option value="package">📦 Storage / Loading Bay</option>
+            <option value="wrench">🛠️ Maintenance Spot</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-loc-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-loc-modal">Save Location</button>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
+  </div><!-- End #app -->
+
+  <script src="app.js"></script>
+</body>
+</html>
